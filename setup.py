@@ -12,17 +12,17 @@ def readme():
 
 
 setup(
-    name='model',
+    name='fraud',
     version='0.1',
-    description='modeling framework',
+    description='iLoan Fraud Model',
     long_description=readme(),
     classifiers=[
         'Programming Language :: Python :: 3',
     ],
-    url='https://github.com/ncentola/modeling_framework',
+    url='https://github.com/iloan/fraud_models',
     author='Nick Centola',
-    author_email='centola.nick@gmail.com',
-    packages=['model'],
+    author_email='ncentola@iloan.com',
+    packages=['fraud'],
     install_requires=[
         'pypandoc>=1.4',
         'numpy>=1.14.0'

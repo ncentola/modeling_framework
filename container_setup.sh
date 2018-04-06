@@ -2,8 +2,7 @@
 
 if [ -z "$1" ]
 then
-  echo 'Must provide a name for the virtualenv'
-  exit 1
+  VIRTUALENV_NAME='python_fraud_model'
 else
   VIRTUALENV_NAME=$1
 fi
