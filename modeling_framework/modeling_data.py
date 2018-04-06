@@ -1,10 +1,8 @@
-from global_vars import DB_USER, query_path_beginning
 from datetime import datetime, timedelta
-from pandas import merge, get_dummies, read_sql, to_datetime
-from sqlalchemy import text
 from data_classes import *
 from warnings import warn
 import db, os, pickle
+import pandas as pd
 
 class ModelingData():
 
@@ -39,7 +37,7 @@ class ModelingData():
                 modeling_data = data_class.processed_data
             else:
                 try:
-                    modeling_data = merge(modeling_data, data_class.processed_data, how = 'left', on = join_keys)
+                    modeling_data = pd.merge(modeling_data, data_class.processed_data, how = 'left', on = join_keys)
                 except:
                     warn('Unable to join '+class_name_text)
 
@@ -54,7 +52,7 @@ class ModelingData():
             except:
                 pass
 
-        modeling_data_dummy = get_dummies(modeling_data, prefix_sep='__')
+        modeling_data_dummy = pd.get_dummies(modeling_data, prefix_sep='__')
 
         self.modeling_data = modeling_data_dummy
 
