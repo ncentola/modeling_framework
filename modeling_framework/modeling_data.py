@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from pandas import merge, get_dummies, read_sql, to_datetime
 from sqlalchemy import text
 from data_classes import *
+from warnings import warn
 import db, os, pickle
 
 class ModelingData():
@@ -17,7 +18,8 @@ class ModelingData():
     def build(self, target, debug = False, cols_to_drop = []):
         modeling_data = None
 
-        for class_name in self.class_dict:
+        for class_name in self.class_dict.keys():
+            join_keys = class_dict[class_name]
             try:
                 data_class = class_name(ids = self.ids)
             except:
@@ -37,12 +39,9 @@ class ModelingData():
                 modeling_data = data_class.processed_data
             else:
                 try:
-                    modeling_data = merge(modeling_data, data_class.processed_data, how = 'left', on = ['account_id', 'application_id'])
+                    modeling_data = merge(modeling_data, data_class.processed_data, how = 'left', on = join_keys)
                 except:
-                    try:
-                        modeling_data = merge(modeling_data, data_class.processed_data, how = 'left', on = ['account_id'])
-                    except:
-                        pass
+                    warn('Unable to join '+class_name_text)
 
             if debug:
                 print(type(data_class).__name__ + ' ' + str(len(modeling_data.index)) + ' rows')
