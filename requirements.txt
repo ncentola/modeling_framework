@@ -1,0 +1,11 @@
+sklearn
+pandas
+geopy
+Flask
+SQLAlchemy
+xgboost
+scikit-optimize
+lightgbm
+psycopg2
+boto3
+gunicorn
