@@ -14,7 +14,7 @@ class ModelingData():
         self.ids = ids
 
 
-    def build(self, target, debug = False):
+    def build(self, target, debug = False, cols_to_drop = []):
         modeling_data = None
 
         for class_name in self.class_dict:
@@ -46,47 +46,26 @@ class ModelingData():
 
             if debug:
                 print(type(data_class).__name__ + ' ' + str(len(modeling_data.index)) + ' rows')
-        # if training, filter out non-fraud auto declines
-        # if training, filter out RECORDS with CONSUMER ALERTS (up for debate whether this is right or wrong)
-        if self.train:
-            modeling_data = modeling_data[(modeling_data[target]) | (modeling_data.initial_decision != 'declined')]
-            modeling_data = modeling_data.loc[modeling_data.security_statement_present_on_report == 0]
 
-        # do this better - something like drop where dtype is datetime
         self.target = modeling_data[target]
-        cols_to_drop =  [    target,
-                            'app_created_date',
-                            'application_created_at',
-                            'initial_decision',
-                            'security_statement_present_on_report',
-                            'state',
-                            'active_net_monthly'
-                            # 'job_overall_fraud_rate',
-                            # 'isp_overall_fraud_rate',
-                            # 'org_overall_fraud_rate'
-                        ]
+
         for col in cols_to_drop:
             try:
                 modeling_data = modeling_data.drop([col], axis = 1)
             except:
                 pass
 
-
-
         modeling_data_dummy = get_dummies(modeling_data, prefix_sep='__')
 
         self.modeling_data = modeling_data_dummy
 
-    def save(self, dir = '/Users/ncentola/saved_data'):
+    def save(self, dir = '~/saved_data'):
             if not os.path.exists(dir):
                 os.mkdir(dir)
 
             if '.pkl' not in self.data_name:
                 self.data_name = self.data_name + '.pkl'
 
-            # m = copy(self)
-
-            # del m.data
 
             with open(os.path.join(dir, self.data_name), 'wb') as output:
                 pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
