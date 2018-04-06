@@ -6,4 +6,4 @@ virtualenv --system-site-packages -p python3 ~/$VIRTUALENV_NAME
 source ~/$VIRTUALENV_NAME/bin/activate
 
 pip install .
-pip install -r requirements.txt
+pip install -r dev_requirements.txt
