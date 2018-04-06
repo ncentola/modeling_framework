@@ -14,7 +14,7 @@ def readme():
 setup(
     name='modeling_framework',
     version='0.1',
-    description='iLoan Fraud Model',
+    description='General purpose predictive modeling framework',
     long_description=readme(),
     classifiers=[
         'Programming Language :: Python :: 3',
