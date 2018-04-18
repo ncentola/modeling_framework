@@ -1,4 +1,4 @@
-from helper_functions import setdiff, find_or_create_model_records, find_new_records
+import helper_functions as hf
 from numpy import nan, unique
 from xgboost import DMatrix
 import pickle, os
@@ -13,24 +13,15 @@ class Scorer(object):
     def __init__(self, model, data):
 
         # if passed in a model object, set to self.model, else assume path was passed in and go load it
-        if isinstance(model, ModelWrapper):
-            self.model = model
-        else:
-            try:
-                if '.pkl' not in model:
-                    model = os.path.join(model, 'model.pkl')
-
-                with open(model, 'rb') as pickle_file:
-                    self.model = pickle.load(pickle_file)
-            except:
-                raise ValueError('Must pass in Model object or valid path to a saved model folder')
+        self.model = hf.read_model(model)
+        self.data = hf.read_data(data)
 
         # if accidently scoring app_ids the model was trained on, throw error
-        if data.modeling_data.ids.isin(self.model.ids).any():
-            warnings.warn("You're trying to score applications used in model training")
+        # if self.data.ids.isin(self.model.ids).any():
+            # warnings.warn("You're trying to score applications used in model training")
 
 
-        self.data = data
+
 
     def score(self, calc_contribs = True):
 
@@ -38,10 +29,13 @@ class Scorer(object):
         scoring_data = copy(self.data.modeling_data)
         target = copy(self.data.target)
 
+        if hasattr(self.model.model_lookup, 'target_lookup'):
+            target = target.replace(self.model.model_lookup.target_lookup)
+
         train_columns = self.model.train_columns
 
-        missing_cols = setdiff(train_columns, list(scoring_data.columns))
-        extra_cols = setdiff(list(scoring_data.columns), train_columns)
+        missing_cols = hf.setdiff(train_columns, list(scoring_data.columns))
+        extra_cols = hf.setdiff(list(scoring_data.columns), train_columns)
 
         for col in missing_cols:
             if '__' in col:
@@ -58,11 +52,11 @@ class Scorer(object):
         # reorder the columns to same order trained on
         scoring_data = scoring_data[train_columns]
         self.scoring_data = scoring_data
-        xgb_data = DMatrix(scoring_data, label = self.data.target)
+        xgb_data = DMatrix(scoring_data, label = target)
 
         if calc_contribs:
 
-            contribs_df = copy(scoring_data[['account_id', 'application_id']])
+            contribs_df = copy(scoring_data[['partial_application_id']])
 
             c = model.predict(xgb_data, pred_contribs = True)
             c = pd.DataFrame.from_records(c, columns = list(scoring_data.columns) + ['bias'])
@@ -93,21 +87,34 @@ class Scorer(object):
 
 
 
-        preds_df = copy(scoring_data[['account_id', 'application_id']])
+        preds_df = copy(scoring_data[['partial_application_id']])
 
         # this needs to be better but not sure. Basically every predict method has it's own idiosyncrocasies and need to be handled separately (for now)
         if self.model.model_type == 'lightgbm':
-            preds_df['score'] = model.predict_proba(scoring_data.as_matrix())[:,1]
+            if hasattr(self.model.model_lookup, 'target_lookup'):
+                preds_df = pd.DataFrame(model.predict_proba(scoring_data.as_matrix()))
+                highest_pred = preds_df.idxmax(axis=1).replace(self.model.model_lookup.target_lookup_inverse)
+                self.raw_preds = copy(preds_df)
+                mydict = self.model.model_lookup.target_lookup
+                new_cols = []
+                for c in preds_df.columns:
+                    new_cols.append(list(mydict.keys())[list(mydict.values()).index(c)])
+
+                preds_df.columns = new_cols
+                # highest_pred_offer = preds_df.drop('none', axis=1).idxmax(axis=1).replace(self.model.model_lookup.target_lookup_inverse)
+                preds_df['partial_application_id'] = scoring_data['partial_application_id']
+                # preds_df['highest_pred_offer'] = highest_pred_offer
+                preds_df['highest_pred'] = highest_pred
+            else:
+                preds_df['score'] = model.predict_proba(scoring_data.as_matrix())[:,1]
         elif self.model.model_type == 'xgboost':
             preds_df['score'] = model.predict(xgb_data)
         else:
             preds_df['score'] = model.predict(scoring_data.as_matrix())
 
-        preds_df['target'] = target
+        preds_df['target'] = self.data.target
 
-        preds = preds_df
-
-        self.preds = pd.concat(list(preds.values()))
+        self.preds = preds_df
 
     def write_db(self, db_con, schema):
         '''
