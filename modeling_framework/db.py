@@ -9,6 +9,44 @@ implement get and close methods for any db connections you will need here
 '''
 
 # ----------------------------
+# ---------GREENPLUM----------
+# ----------------------------
+
+my_engine = None
+gp_con = None
+
+def get_gp_con(user=None):
+    global gp_con
+    global gp_engine
+
+    if not gp_con:
+        gp_engine = create_engine(postgres_base_uri.format(
+            dbuser=current_app.config['GP_DATABASE_USER'],
+            dbpass=current_app.config['GP_DATABASE_PASS'],
+            dbhost=current_app.config['GP_DATABASE_HOST'],
+            dbname=current_app.config['GP_DATABASE_NAME'],
+        ))
+        gp_con = gp_engine.connect()
+    return gp_engine, gp_con
+
+def close_gp_con():
+    global gp_con
+    global gp_engine
+
+    if gp_con and gp_engine:
+        gp_con.close()
+        gp_engine.dispose()
+        gp_engine = None
+        gp_con = None
+
+
+
+def kill_all():
+    for thing in dir(db):
+        if 'close_' in thing:
+            getattr(db, thing)()
+
+# ----------------------------
 # ----------EXAMPLE----------
 # ----------------------------
 
