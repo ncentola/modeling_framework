@@ -1,4 +1,3 @@
-from global_vars import query_path_beginning, DB_USER
 import helper_functions as hf
 from sqlalchemy import text
 from json import loads
@@ -29,6 +28,55 @@ class DataClass():
                 self.process_data_submethod(train = train)
             except:
                 print(str(type(self)) + ' - Failed to process data')
+
+class Offers(DataClass):
+
+    def __init__(self, ids):
+        self.partial_application_ids = ids
+        self.formatted_partial_application_ids = hf.format_id_vector(ids)
+
+    def gather_data_submethod(self, **kwargs):
+        _, gp_con = db.get_gp_con()
+
+        offers_query_text_path = '../../queries/offer_selection/offers.sql'
+        offers_query = hf.format_query_with_dummy_var(offers_query_text_path, self.formatted_partial_application_ids)
+        offers_data = pd.read_sql(offers_query, gp_con)
+
+        frags = hf.jsons_to_dfs(offers_data.fragments)
+        frags.columns = ['fragments_' + thing for thing in frags.columns]
+        frags = frags[['fragments_applicant_monthly_income_net',
+                       'fragments_applicant_primary_phone_type']]
+
+        ads = hf.jsons_to_dfs(offers_data.application_details)
+        ads.columns = ['application_details_' + thing for thing in ads.columns]
+        ads = ads[['application_details_applicant_annual_gross_income',
+                    'application_details_applicant_annual_income_gross',
+                    'application_details_applicant_bank_account_account_type',
+                    'application_details_applicant_birth_date',
+                    'application_details_applicant_current_employment_employment_status',
+                    'application_details_applicant_housing_status',
+                    'application_details_applicant_home_value',
+                    'application_details_applicant_primary_phone_type',
+                    'application_details_application_url',
+                    'application_details_credit_rating',
+                    'application_details_reason_for_loan']]
+
+        select_details = ads.merge(frags, how='left', left_index=True, right_index=True)
+        # select_details_yn = select_details.notnull().astype('int')
+
+        offers_data = offers_data.merge(select_details, how='left', left_index=True, right_index=True)
+
+        self.raw_data = offers_data
+
+    def process_data_submethod(self, **kwargs):
+        processed_data = copy(self.raw_data)
+        processed_data['offer_selected'] = processed_data.offer_selected + ' - '+ processed_data.sel_security
+
+        processed_data['applicant_age_years'] = ((pd.to_datetime('today') - pd.to_datetime(processed_data.application_details_applicant_birth_date)).dt.total_seconds() / 3600 / 24 / 365)
+        processed_data = processed_data.drop(['sel_security', 'application_details', 'fragments', 'application_details_applicant_birth_date', 'fragments_applicant_monthly_income_net'], axis=1)
+        processed_data['offer_selected'] = processed_data.offer_selected.fillna('none')
+
+        self.processed_data = processed_data
 '''
 put all data classes here:
 for example...
