@@ -4,10 +4,10 @@ import os
 class Config(object):
     DEBUG = False
     TESTING = False
-    MY_DATABASE_HOST = os.environ.get('MY_DATABASE_HOST', None)
-    MY_DATABASE_NAME = os.environ.get('MY_DATABASE_NAME', None)
-    MY_DATABASE_USER = os.environ.get('MY_DATABASE_USER', None)
-    MY_DATABASE_PASS = os.environ.get('MY_DATABASE_PASS', None)
+    GP_DATABASE_HOST = os.environ.get('GP_DATABASE_HOST', None)
+    GP_DATABASE_NAME = os.environ.get('GP_DATABASE_NAME', None)
+    GP_DATABASE_USER = os.environ.get('GP_DATABASE_USER', None)
+    GP_DATABASE_PASS = os.environ.get('GP_DATABASE_PASS', None)
 
 class ProductionConfig(Config):
     pass
