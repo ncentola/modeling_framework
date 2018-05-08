@@ -1,3 +1,4 @@
+from pandas.api.types import is_string_dtype, is_bool_dtype, is_numeric_dtype
 from sklearn.linear_model import SGDClassifier, SGDRegressor
 import helper_functions as hf
 import lightgbm as lgbm
@@ -8,7 +9,7 @@ class ModelLookup():
 
     def __init__(self, model_type, target_col):
         self.model_type = model_type
-        self.target_dtype = target_col.dtype
+        self.target_col = target_col
         self.get_model()
 
 
@@ -42,16 +43,25 @@ class ModelLookup():
         self.model_name = 'xgboost_model_' + pd.to_datetime('today').strftime('%Y-%m-%d')
         # self.cores = hf.detect_cores() - 2
 
-        if self.target_dtype == 'bool':
+        if is_bool_dtype(self.target_col):
             objective = 'binary:logistic'
             self.tuning_metric = 'roc_auc'
             self.model = xgb.XGBClassifier()
             # self.tuning_metric = 'f1'
-        else:
+        elif is_numeric_dtype(self.target_col):
             objective = 'reg:linear'
             self.tuning_metric = 'neg_mean_squared_error'
             self.model = xgb.XGBRegressor()
-            # self.tuning_metric = 'neg_mean_absolute_error'
+        elif is_string_dtype(self.target_col):
+            objective = 'multi:softprob'
+            num_class = len(pd.unique(self.target_col))
+
+            self.tuning_metric = 'accuracy'
+            self.target_lookup = pd.Categorical(self.target_col)
+            self.target_col = self.target_lookup.codes
+            self.model = xgb.XGBClassifier()
+        else:
+            print('some sort of error')
 
         self.best_params = { 'base_score': 0.5,
                              'booster': 'gbtree',
@@ -74,6 +84,11 @@ class ModelLookup():
                              'seed': 0,
                              'silent': True,
                              'subsample': 1}
+
+        try:
+            self.model.set_params(num_class=num_class)
+        except:
+            pass
 
         # ------------------
         # model tuning attrs
@@ -101,12 +116,12 @@ class ModelLookup():
         self.model_name = 'linear_model_' + pd.to_datetime('today').strftime('%Y-%m-%d')
         # self.cores = hf.detect_cores() - 2
 
-        if self.target_dtype == 'bool':
+        if is_bool_dtype(self.target_col):
             loss = 'log'
             self.tuning_metric = 'roc_auc'
             self.model = SGDClassifier()
             # self.tuning_metric = 'f1'
-        else:
+        elif is_numeric_dtype(self.target_col):
             loss = 'squared_loss'
             self.tuning_metric = 'neg_mean_squared_error'
             self.model = SGDRegressor()
@@ -150,14 +165,22 @@ class ModelLookup():
         self.model_name = 'lightgbm_model_' + pd.to_datetime('today').strftime('%Y-%m-%d')
         # self.cores = hf.detect_cores() - 2
 
-        if self.target_dtype == 'bool':
+        if is_bool_dtype(self.target_col):
             objective = 'binary'
             self.tuning_metric = 'roc_auc'
             self.model = lgbm.LGBMClassifier()
             # self.tuning_metric = 'f1'
-        else:
+        elif is_numeric_dtype(self.target_col):
             objective = 'regression'
             self.tuning_metric = 'neg_mean_squared_error'
+            self.model = lgbm.LGBMRegressor()
+        elif is_string_dtype(self.target_col):
+            objective = 'multiclass'
+            num_class = len(pd.unique(self.target_col))
+
+            self.tuning_metric = 'accuracy'
+            self.target_lookup = pd.Categorical(self.target_col)
+            self.target_col = pd.Series(self.target_lookup.codes)
             self.model = lgbm.LGBMRegressor()
             # self.tuning_metric = 'neg_mean_absolute_error'
 
@@ -180,6 +203,11 @@ class ModelLookup():
                              'subsample': 1.0,
                              'subsample_for_bin': 200000,
                              'subsample_freq': 1}
+
+        try:
+            self.model.set_params(num_class=num_class)
+        except:
+            pass
 
         # ------------------
         # model tuning attrs

@@ -1,4 +1,4 @@
-from helper_functions import setdiff, find_or_create_model_records, find_new_records
+import helper_functions as hf
 from numpy import nan, unique
 from xgboost import DMatrix
 import pickle, os
@@ -13,17 +13,8 @@ class Scorer(object):
     def __init__(self, model, data):
 
         # if passed in a model object, set to self.model, else assume path was passed in and go load it
-        if isinstance(model, ModelWrapper):
-            self.model = model
-        else:
-            try:
-                if '.pkl' not in model:
-                    model = os.path.join(model, 'model.pkl')
-
-                with open(model, 'rb') as pickle_file:
-                    self.model = pickle.load(pickle_file)
-            except:
-                raise ValueError('Must pass in Model object or valid path to a saved model folder')
+        self.model = hf.read_model(model)
+        self.data = hf.read_data(data)
 
         # if accidently scoring app_ids the model was trained on, throw error
         if data.modeling_data.ids.isin(self.model.ids).any():
@@ -40,8 +31,8 @@ class Scorer(object):
 
         train_columns = self.model.train_columns
 
-        missing_cols = setdiff(train_columns, list(scoring_data.columns))
-        extra_cols = setdiff(list(scoring_data.columns), train_columns)
+        missing_cols = hf.setdiff(train_columns, list(scoring_data.columns))
+        extra_cols = hf.setdiff(list(scoring_data.columns), train_columns)
 
         for col in missing_cols:
             if '__' in col:
