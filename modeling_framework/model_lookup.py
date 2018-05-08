@@ -1,4 +1,3 @@
-from pandas.api.types import is_string_dtype, is_bool_dtype, is_numeric_dtype
 from sklearn.linear_model import SGDClassifier, SGDRegressor
 import helper_functions as hf
 import lightgbm as lgbm
@@ -9,7 +8,7 @@ class ModelLookup():
 
     def __init__(self, model_type, target_col):
         self.model_type = model_type
-        self.target_col = target_col
+        self.target_dtype = target_col.dtype
         self.get_model()
 
 
@@ -43,26 +42,16 @@ class ModelLookup():
         self.model_name = 'xgboost_model_' + pd.to_datetime('today').strftime('%Y-%m-%d')
         # self.cores = hf.detect_cores() - 2
 
-        if is_bool_dtype(self.target_col):
+        if self.target_dtype == 'bool':
             objective = 'binary:logistic'
             self.tuning_metric = 'roc_auc'
             self.model = xgb.XGBClassifier()
             # self.tuning_metric = 'f1'
-        elif is_numeric_dtype(self.target_col):
+        else:
             objective = 'reg:linear'
             self.tuning_metric = 'neg_mean_squared_error'
             self.model = xgb.XGBRegressor()
-        elif is_string_dtype(self.target_col):
-            objective = 'multi:softprob'
-            num_class = len(pd.unique(self.target_col))
-
-            self.tuning_metric = 'accuracy'
-            cat = pd.Categorical(self.target_col)
-            self.target_lookup, self.target_lookup_inverse = hf.multiclass_lookup(target_raw=self.target_col, target_numeric=cat.codes)
-            self.target_col = cat.codes
-            self.model = xgb.XGBClassifier()
-        else:
-            print('some sort of error')
+            # self.tuning_metric = 'neg_mean_absolute_error'
 
         self.best_params = { 'base_score': 0.5,
                              'booster': 'gbtree',
@@ -85,12 +74,6 @@ class ModelLookup():
                              'seed': 0,
                              'silent': True,
                              'subsample': 1}
-
-        try:
-            self.best_params['num_class'] = num_class
-            self.model.set_params(num_class=num_class)
-        except:
-            pass
 
         # ------------------
         # model tuning attrs
@@ -118,12 +101,12 @@ class ModelLookup():
         self.model_name = 'linear_model_' + pd.to_datetime('today').strftime('%Y-%m-%d')
         # self.cores = hf.detect_cores() - 2
 
-        if is_bool_dtype(self.target_col):
+        if self.target_dtype == 'bool':
             loss = 'log'
             self.tuning_metric = 'roc_auc'
             self.model = SGDClassifier()
             # self.tuning_metric = 'f1'
-        elif is_numeric_dtype(self.target_col):
+        else:
             loss = 'squared_loss'
             self.tuning_metric = 'neg_mean_squared_error'
             self.model = SGDRegressor()
@@ -167,52 +150,36 @@ class ModelLookup():
         self.model_name = 'lightgbm_model_' + pd.to_datetime('today').strftime('%Y-%m-%d')
         # self.cores = hf.detect_cores() - 2
 
-        if is_bool_dtype(self.target_col):
+        if self.target_dtype == 'bool':
             objective = 'binary'
             self.tuning_metric = 'roc_auc'
             self.model = lgbm.LGBMClassifier()
             # self.tuning_metric = 'f1'
-        elif is_numeric_dtype(self.target_col):
+        else:
             objective = 'regression'
             self.tuning_metric = 'neg_mean_squared_error'
             self.model = lgbm.LGBMRegressor()
-        elif is_string_dtype(self.target_col):
-            objective = 'multiclass'
-            num_class = len(pd.unique(self.target_col))
-
-            self.tuning_metric = 'accuracy'
-            cat = pd.Categorical(self.target_col)
-            self.target_lookup, self.target_lookup_inverse = hf.multiclass_lookup(target_raw=self.target_col, target_numeric=cat.codes)
-            self.target_col = pd.Series(cat.codes)
-            self.model = lgbm.LGBMClassifier()
             # self.tuning_metric = 'neg_mean_absolute_error'
 
         self.best_params = { 'boosting_type': 'gbdt',
                              'class_weight': None,
-                             'colsample_bytree': 0.94245984491270929,
-                             'learning_rate': 0.038052555602242508,
-                             'max_depth': 5,
+                             'colsample_bytree': 1.0,
+                             'learning_rate': 0.1,
+                             'max_depth': -1,
                              'min_child_samples': 20,
-                             'min_child_weight': 2.2193998515638675,
-                             'min_split_gain': 0.085352694678906493,
-                             'n_estimators': 123,
+                             'min_child_weight': 0.001,
+                             'min_split_gain': 0.0,
+                             'n_estimators': 100,
                              'n_jobs': -1,
-                             'num_class': 17,
                              'num_leaves': 31,
-                             'objective': 'multiclass',
+                             'objective': objective,
                              'random_state': None,
-                             'reg_alpha': 5,
-                             'reg_lambda': 7,
+                             'reg_alpha': 0.0,
+                             'reg_lambda': 0.0,
                              'silent': True,
-                             'subsample': 0.95702139820178278,
+                             'subsample': 1.0,
                              'subsample_for_bin': 200000,
                              'subsample_freq': 1}
-
-        try:
-            self.best_params['num_class'] = num_class
-            self.model.set_params(num_class=num_class)
-        except:
-            pass
 
         # ------------------
         # model tuning attrs
@@ -220,7 +187,7 @@ class ModelLookup():
 
         self.param_space =  {
                                 'max_depth': (5, 10),
-                                'n_estimators': (50, 300),
+                                'n_estimators': (50, 125),
                                 'learning_rate': (0.01, .3),
                                 'min_child_weight': (0.01, 20),
                                 'min_split_gain': (0.0, 0.1),
@@ -229,5 +196,4 @@ class ModelLookup():
                                 'reg_lambda': (0, 10),
                                 'subsample': (.2, 1)
                             }
-        # self.objective_function = hf.lgbm_objective
-        self.objective_function = hf.lgbm_rank_objective
+        self.objective_function = hf.lgbm_objective

@@ -6,38 +6,18 @@ import pandas as pd
 
 class ModelingData():
 
-    def __init__(self, class_dict, ids = [], train = False, time_window=False, time_window_end = 2, time_window_weeks = 12):
+    def __init__(self, class_dict, ids = [], train = False):
         self.class_dict = class_dict
         self.train = train
-        self.train_horizon = '1000-01-01'
 
-        if time_window:
-            ids = self.get_train_ids(time_window_weeks=time_window_weeks, time_window_end=time_window_end)
         self.ids = ids
 
-    def get_train_ids(self, time_window_weeks, time_window_end = 2):
-        start_weeks = time_window_end + time_window_weeks
-        start = (datetime.today() - timedelta(weeks=start_weeks)).strftime("%Y-%m-%d")
-        end = (datetime.today() - timedelta(weeks=time_window_end)).strftime("%Y-%m-%d")
-        self.train_horizon = end
-
-        print('Getting application_ids between ' + start + ' and ' + end)
-
-        _, gp_con = db.get_gp_con()
-
-        ids_time_window_query = "CREATE TEMP TABLE p_app_ids AS (SELECT partial_application_id FROM chicago.partial_applications WHERE created_at BETWEEN '_start_' AND '_end_')"
-        ids_time_window_query = text(ids_time_window_query.replace('_start_', start).replace('_end_', end))
-
-        gp_con.execute(text('DROP TABLE IF EXISTS p_app_ids'))
-        gp_con.execute(ids_time_window_query)
-        ids = pd.read_sql(text('SELECT * FROM p_app_ids'), gp_con)
-        return ids.partial_application_id
 
     def build(self, target, debug = False, cols_to_drop = []):
         modeling_data = None
 
         for class_name in self.class_dict.keys():
-            join_keys = self.class_dict[class_name]
+            join_keys = class_dict[class_name]
             try:
                 data_class = class_name(ids = self.ids)
             except:
@@ -66,7 +46,6 @@ class ModelingData():
 
         self.target = modeling_data[target]
 
-        cols_to_drop = cols_to_drop + [target]
         for col in cols_to_drop:
             try:
                 modeling_data = modeling_data.drop([col], axis = 1)
