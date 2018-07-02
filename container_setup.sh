@@ -7,3 +7,5 @@ source ~/virtualenvs/$VIRTUALENV_NAME/bin/activate
 
 pip install .
 pip install -r dev_requirements.txt
+
+ipython kernel install --user --name=$VIRTUALENV_NAME
